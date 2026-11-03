@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag (e.g. v0.1.0)"
+        required: false
+        default: ""
 
 jobs:
   build-release:
@@ -19,10 +25,27 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache cargo registry & build target
+        uses: Swatinem/rust-cache@v2
+
       - name: Install packaging tools
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deb,cargo-generate-rpm
+
+      - name: Determine release version
+        id: vars
         run: |
-          cargo install cargo-deb --locked
-          cargo install cargo-generate-rpm --locked
+          if [ -n "${{ inputs.tag_name }}" ]; then
+            TAG="${{ inputs.tag_name }}"
+          elif [[ "${GITHUB_REF_NAME}" == v* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            VERSION=$(grep '^version = ' Cargo.toml | head -1 | cut -d '"' -f 2)
+            TAG="v${VERSION}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       - name: Build release binary
         run: cargo build --release
@@ -33,21 +56,24 @@ jobs:
       - name: Package RPM (.rpm)
         run: cargo generate-rpm
 
-      - name: Create tarball (.tar.gz)
+      - name: Assemble distribution artifacts
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${{ steps.vars.outputs.version }}"
           ARCH="x86_64"
           TAR_DIR="ufw-guard-${VERSION}-${ARCH}"
-          mkdir -p "${TAR_DIR}"
+          mkdir -p "${TAR_DIR}" dist
           cp target/release/ufw LICENSE README.md "${TAR_DIR}/"
-          tar -czvf "ufw-guard-${VERSION}-${ARCH}.tar.gz" "${TAR_DIR}"
+          tar -czvf "dist/ufw-guard-${VERSION}-${ARCH}.tar.gz" "${TAR_DIR}"
+          cp target/debian/*.deb dist/
+          cp target/generate-rpm/*.rpm dist/
+          cd dist
+          sha256sum * > SHA256SUMS
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            target/debian/*.deb
-            target/generate-rpm/*.rpm
-            *.tar.gz
+          tag_name: ${{ steps.vars.outputs.tag }}
+          files: dist/*
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
