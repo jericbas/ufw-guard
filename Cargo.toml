@@ -1,0 +1,20 @@
+[package]
+name = "ufw"
+version = "0.1.0"
+edition = "2021"
+authors = ["Jeric Bas <jericrayebas@gmail.com>"]
+description = "Compiled Rust governance wrapper for UFW"
+license = "GPL-3.0-only"
+repository = "https://github.com/jericbas/ufw-guard"
+readme = "README.md"
+keywords = ["ufw", "firewall", "security", "governance"]
+categories = ["command-line-utilities", "system-administration"]
+
+[dependencies]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
