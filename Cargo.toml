@@ -18,3 +18,24 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+
+[package.metadata.deb]
+name = "ufw-guard"
+maintainer = "Jeric Bas <jericrayebas@gmail.com>"
+copyright = "2026, Jeric Bas"
+license-file = ["LICENSE", "4"]
+depends = "ufw (>= 0.35)"
+section = "admin"
+priority = "optional"
+assets = [
+    ["target/release/ufw", "usr/local/sbin/ufw", "755"],
+]
+
+[package.metadata.generate-rpm]
+name = "ufw-guard"
+summary = "Compiled Rust governance wrapper for UFW"
+license = "GPL-3.0-only"
+requires = ["ufw >= 0.35"]
+assets = [
+    { source = "target/release/ufw", dest = "/usr/local/sbin/ufw", mode = "755" },
+]
