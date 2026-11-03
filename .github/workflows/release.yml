@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-release:
+    name: Build & Package Artifacts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install packaging tools
+        run: |
+          cargo install cargo-deb --locked
+          cargo install cargo-generate-rpm --locked
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Package Debian (.deb)
+        run: cargo deb --no-build
+
+      - name: Package RPM (.rpm)
+        run: cargo generate-rpm
+
+      - name: Create tarball (.tar.gz)
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARCH="x86_64"
+          TAR_DIR="ufw-guard-${VERSION}-${ARCH}"
+          mkdir -p "${TAR_DIR}"
+          cp target/release/ufw LICENSE README.md "${TAR_DIR}/"
+          tar -czvf "ufw-guard-${VERSION}-${ARCH}.tar.gz" "${TAR_DIR}"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            target/debian/*.deb
+            target/generate-rpm/*.rpm
+            *.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
