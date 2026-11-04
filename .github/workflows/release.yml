@@ -2,44 +2,59 @@ name: Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       tag_name:
-        description: "Release tag (e.g. v0.1.0)"
+        description: "Release tag (e.g. v0.2.0)"
         required: false
         default: ""
 
-jobs:
-  build-release:
-    name: Build & Package Artifacts
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+permissions:
+  contents: write
+  pull-requests: write
 
+jobs:
+  release-please:
+    name: Release Please & Publish
+    runs-on: ubuntu-latest
     steps:
+      - name: Run Release Please
+        uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
       - name: Checkout code
+        if: ${{ steps.release.outputs.releases_created || github.event_name == 'workflow_dispatch' }}
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Rust
+        if: ${{ steps.release.outputs.releases_created || github.event_name == 'workflow_dispatch' }}
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo registry & build target
+        if: ${{ steps.release.outputs.releases_created || github.event_name == 'workflow_dispatch' }}
         uses: Swatinem/rust-cache@v2
 
       - name: Install packaging tools
+        if: ${{ steps.release.outputs.releases_created || github.event_name == 'workflow_dispatch' }}
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-deb,cargo-generate-rpm
 
       - name: Determine release version
+        if: ${{ steps.release.outputs.releases_created || github.event_name == 'workflow_dispatch' }}
         id: vars
         run: |
           if [ -n "${{ inputs.tag_name }}" ]; then
             TAG="${{ inputs.tag_name }}"
-          elif [[ "${GITHUB_REF_NAME}" == v* ]]; then
-            TAG="${GITHUB_REF_NAME}"
+          elif [ -n "${{ steps.release.outputs.tag_name }}" ]; then
+            TAG="${{ steps.release.outputs.tag_name }}"
           else
             VERSION=$(grep '^version = ' Cargo.toml | head -1 | cut -d '"' -f 2)
             TAG="v${VERSION}"
@@ -48,20 +63,25 @@ jobs:
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       - name: Build release binary
+        if: ${{ steps.release.outputs.releases_created || github.event_name == 'workflow_dispatch' }}
         run: cargo build --release
 
       - name: Publish to crates.io
+        if: ${{ steps.release.outputs.releases_created || github.event_name == 'workflow_dispatch' }}
         run: cargo publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Package Debian (.deb)
+        if: ${{ steps.release.outputs.releases_created || github.event_name == 'workflow_dispatch' }}
         run: cargo deb --no-build
 
       - name: Package RPM (.rpm)
+        if: ${{ steps.release.outputs.releases_created || github.event_name == 'workflow_dispatch' }}
         run: cargo generate-rpm
 
       - name: Assemble distribution artifacts
+        if: ${{ steps.release.outputs.releases_created || github.event_name == 'workflow_dispatch' }}
         run: |
           VERSION="${{ steps.vars.outputs.version }}"
           ARCH="x86_64"
@@ -74,11 +94,11 @@ jobs:
           cd dist
           sha256sum * > SHA256SUMS
 
-      - name: Publish GitHub Release
+      - name: Upload Artifacts to GitHub Release
+        if: ${{ steps.release.outputs.releases_created || github.event_name == 'workflow_dispatch' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.vars.outputs.tag }}
           files: dist/*
-          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
