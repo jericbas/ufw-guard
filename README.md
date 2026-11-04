@@ -65,11 +65,14 @@ sudo ufw --remediate
 Optional `/etc/ufw/ufw-guard.conf` (override path with `UFW_GUARD_CONFIG`). Environment variables take precedence over the file for tunables; a malformed file is rejected (fail closed).
 
 ```ini
-allow_bypass = true               # false disables --force-no-comment and UFW_GUARD_BYPASS
+# false disables --force-no-comment and UFW_GUARD_BYPASS
+allow_bypass = true
 min_comment_length = 4
 comment_pattern = "^[A-Z]+-[0-9]+"
-require_comment_on_delete = false # true: `ufw delete ... comment "reason"` (logged, not forwarded)
-auto_append_user = true           # append [by: user @ date]
+# true: `ufw delete ... comment "reason"` (audit-logged, not forwarded upstream)
+require_comment_on_delete = false
+# append [by: user @ date] to comments
+auto_append_user = true
 ```
 
 ---
