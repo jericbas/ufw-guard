@@ -91,11 +91,15 @@ User / Automation Invocation: `ufw allow 22/tcp`
 4. **Zero Profile Modification**  
    No shell startup files (`~/.bashrc`, `/etc/profile`, aliases) are altered. `ufw-guard` relies on standard Filesystem Hierarchy Standard (FHS) PATH precedence: `/usr/local/sbin/ufw` executes naturally before `/usr/sbin/ufw`.
 
-5. **Authorship Protection & Open Source Governance**  
-   Licensed under GNU General Public License v3.0 (GPLv3). Systems software managing core perimeter security must remain open, auditable, and protected against proprietary relicensing.
+5. **Open Source Governance & Ecosystem Interoperability**  
+   Dual-licensed under MIT or Apache 2.0. Systems software managing core perimeter security should remain open, auditable, and easily adopted across community and enterprise environments without licensing friction.
 
 ---
 
 ## License
 
-Licensed under the [GNU General Public License v3.0](LICENSE).
+Dual-licensed under either of:
+- [MIT License](LICENSE-MIT)
+- [Apache License, Version 2.0](LICENSE-APACHE)
+
+at your option.
