@@ -1,6 +1,6 @@
 [package]
 name = "ufw-guard"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Jeric Bas <jericrayebas@gmail.com>"]
 description = "Compiled Rust governance wrapper for UFW enforcing audit comments on firewall rules"
