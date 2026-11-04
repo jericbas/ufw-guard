@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/jericbas/ufw-guard/compare/v0.3.0...v0.4.0) (2026-11-04)
+
+
+### Features
+
+* build ARM64/static musl artifacts and verify SHA256SUMS in installer ([#26](https://github.com/jericbas/ufw-guard/issues/26)) ([124db51](https://github.com/jericbas/ufw-guard/commit/124db516af7a6edd9a5dceb41acd5d39ca64ee5e))
+
 ## [0.3.0](https://github.com/jericbas/ufw-guard/compare/v0.2.0...v0.3.0) (2026-11-04)
 
 
