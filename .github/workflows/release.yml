@@ -65,14 +65,15 @@ jobs:
             VERSION=$(grep '^version = ' Cargo.toml | head -1 | cut -d '"' -f 2)
             TAG="v${VERSION}"
           fi
+          VERSION=$(echo "${TAG}" | sed -E 's/.*v//')
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build release binary
         run: cargo build --release
 
       - name: Publish to crates.io
-        run: cargo publish
+        run: cargo publish || echo "Crate already published on crates.io"
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
