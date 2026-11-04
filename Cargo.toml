@@ -35,7 +35,9 @@ assets = [
 name = "ufw-guard"
 summary = "Compiled Rust governance wrapper for UFW"
 license = "GPL-3.0-only"
-requires = ["ufw >= 0.35"]
 assets = [
     { source = "target/release/ufw", dest = "/usr/local/sbin/ufw", mode = "755" },
 ]
+
+[package.metadata.generate-rpm.requires]
+ufw = ">= 0.35"
