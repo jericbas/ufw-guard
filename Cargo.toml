@@ -8,7 +8,7 @@ license = "GPL-3.0-only"
 repository = "https://github.com/jericbas/ufw-guard"
 readme = "README.md"
 keywords = ["ufw", "firewall", "security", "governance"]
-categories = ["command-line-utilities", "system-administration"]
+categories = ["command-line-utilities", "security"]
 
 [lib]
 name = "ufw_guard"
