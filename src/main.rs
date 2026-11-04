@@ -3,11 +3,22 @@
 use std::env;
 use std::process;
 
+use ufw_guard::compliance;
 use ufw_guard::executor;
 use ufw_guard::policy;
 
 fn main() {
     let raw_args: Vec<String> = env::args().skip(1).collect();
+
+    match raw_args.first().map(String::as_str) {
+        Some(compliance::AUDIT_FLAG) => {
+            process::exit(compliance::run_audit(&executor::resolve_upstream_path()))
+        }
+        Some(compliance::REMEDIATE_FLAG) => {
+            process::exit(compliance::run_remediate(&executor::resolve_upstream_path()))
+        }
+        _ => {}
+    }
 
     match policy::enforce_policy(&raw_args) {
         Ok(args_to_forward) => {

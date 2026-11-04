@@ -9,7 +9,7 @@ pub const ATTRIBUTION_DATE_ENV: &str = "UFW_GUARD_ATTRIBUTION_DATE";
 pub fn is_attribution_enabled() -> bool {
     env::var(AUTO_ATTRIBUTION_ENV)
         .map(|v| v != "0" && !v.eq_ignore_ascii_case("false"))
-        .unwrap_or(true)
+        .unwrap_or_else(|_| crate::config::current().auto_append_user)
 }
 
 pub fn resolve_invoking_user() -> String {

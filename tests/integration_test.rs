@@ -105,3 +105,111 @@ fn test_integration_flow() {
 
     let _ = fs::remove_dir_all(&temp_dir);
 }
+
+fn mock_with_script(body: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let dir = env::temp_dir().join(format!("ufw_test_cfg_{}", now));
+    fs::create_dir_all(&dir).unwrap();
+    let bin = dir.join("mock_ufw");
+    fs::write(&bin, format!("#!/bin/sh\n{}\n", body)).unwrap();
+    fs::set_permissions(&bin, fs::Permissions::from_mode(0o755)).unwrap();
+    (dir, bin)
+}
+
+#[test]
+fn test_audit_reports_uncommented_rules() {
+    let (dir, bin) = mock_with_script(
+        "if [ \"$1 $2\" = \"show added\" ]; then\n\
+         echo \"Added user rules (see 'ufw status' for running firewall):\"\n\
+         echo \"ufw allow 22/tcp\"\n\
+         echo \"ufw allow 80/tcp comment 'Web ingress'\"\n\
+         fi",
+    );
+    let out = Command::new(env!("CARGO_BIN_EXE_ufw"))
+        .arg("--audit")
+        .env("UFW_GUARD_UPSTREAM_PATH", &bin)
+        .env("UFW_GUARD_CONFIG", dir.join("none.conf"))
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(2));
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("#1: ufw allow 22/tcp  (missing comment)"));
+    assert!(stdout.contains("1 of 2 rule(s) non-compliant."));
+}
+
+#[test]
+fn test_audit_clean_exits_zero() {
+    let (dir, bin) = mock_with_script("echo \"ufw allow 80/tcp comment 'Web ingress'\"");
+    let out = Command::new(env!("CARGO_BIN_EXE_ufw"))
+        .arg("--audit")
+        .env("UFW_GUARD_UPSTREAM_PATH", &bin)
+        .env("UFW_GUARD_CONFIG", dir.join("none.conf"))
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(0));
+}
+
+#[test]
+fn test_remediate_requires_terminal() {
+    let (dir, bin) = mock_with_script("exit 0");
+    let out = Command::new(env!("CARGO_BIN_EXE_ufw"))
+        .arg("--remediate")
+        .env("UFW_GUARD_UPSTREAM_PATH", &bin)
+        .env("UFW_GUARD_CONFIG", dir.join("none.conf"))
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(1));
+}
+
+#[test]
+fn test_config_file_disables_bypass_and_requires_delete_comment() {
+    let (dir, bin) = mock_with_script("echo \"$@\"");
+    let conf = dir.join("ufw-guard.conf");
+    fs::write(
+        &conf,
+        "allow_bypass = false\nrequire_comment_on_delete = true\n",
+    )
+    .unwrap();
+    let run = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_ufw"))
+            .args(args)
+            .env("UFW_GUARD_UPSTREAM_PATH", &bin)
+            .env("UFW_GUARD_CONFIG", &conf)
+            .env("UFW_GUARD_NON_INTERACTIVE", "1")
+            .env("UFW_GUARD_AUDIT_ENABLED", "0")
+            .env("UFW_GUARD_BYPASS", "1")
+            .output()
+            .unwrap()
+    };
+    let out = run(&["allow", "22/tcp", "--force-no-comment"]);
+    assert_eq!(out.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("Bypass is disabled"));
+
+    // Env bypass is ignored under strict policy: uncommented rule is rejected.
+    assert_eq!(run(&["allow", "22/tcp"]).status.code(), Some(1));
+
+    assert_eq!(run(&["delete", "allow", "22/tcp"]).status.code(), Some(1));
+    let out = run(&["delete", "allow", "22/tcp", "comment", "Closing legacy SSH"]);
+    assert!(out.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout).trim(),
+        "delete allow 22/tcp"
+    );
+}
+
+#[test]
+fn test_malformed_config_fails_closed() {
+    let (dir, bin) = mock_with_script("exit 0");
+    let conf = dir.join("bad.conf");
+    fs::write(&conf, "allow_bypass = nope\n").unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_ufw"))
+        .arg("status")
+        .env("UFW_GUARD_UPSTREAM_PATH", &bin)
+        .env("UFW_GUARD_CONFIG", &conf)
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(1));
+}

@@ -3,6 +3,8 @@
 pub mod args;
 pub mod attribution;
 pub mod audit;
+pub mod compliance;
+pub mod config;
 pub mod executor;
 pub mod policy;
 pub mod prompt;

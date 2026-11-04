@@ -50,7 +50,30 @@ ufw reload
 ufw enable
 ```
 
+### Compliance audit and remediation
+
+```bash
+# Scan existing rules; exit code 2 if any lack a valid comment (0 = clean, 1 = error):
+ufw --audit
+
+# Interactively add comments to non-compliant rules (rule is deleted and re-added with its comment):
+sudo ufw --remediate
+```
+
+### System configuration
+
+Optional `/etc/ufw/ufw-guard.conf` (override path with `UFW_GUARD_CONFIG`). Environment variables take precedence over the file for tunables; a malformed file is rejected (fail closed).
+
+```ini
+allow_bypass = true               # false disables --force-no-comment and UFW_GUARD_BYPASS
+min_comment_length = 4
+comment_pattern = "^[A-Z]+-[0-9]+"
+require_comment_on_delete = false # true: `ufw delete ... comment "reason"` (logged, not forwarded)
+auto_append_user = true           # append [by: user @ date]
+```
+
 ---
+
 
 ## Architecture
 
