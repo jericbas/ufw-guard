@@ -48,14 +48,22 @@ impl std::fmt::Display for QualityViolation {
                 actual, min
             ),
             QualityViolation::Placeholder(p) => {
-                write!(f, "Comment '{}' is a generic placeholder and not allowed.", p)
+                write!(
+                    f,
+                    "Comment '{}' is a generic placeholder and not allowed.",
+                    p
+                )
             }
             QualityViolation::NoAlphanumeric => write!(
                 f,
                 "Comment must contain alphanumeric characters, not solely punctuation or symbols."
             ),
             QualityViolation::PatternMismatch { pattern } => {
-                write!(f, "Comment does not match required policy pattern '{}'.", pattern)
+                write!(
+                    f,
+                    "Comment does not match required policy pattern '{}'.",
+                    pattern
+                )
             }
             QualityViolation::InvalidPatternConfig { pattern, error } => {
                 write!(f, "Invalid pattern configuration '{}': {}.", pattern, error)

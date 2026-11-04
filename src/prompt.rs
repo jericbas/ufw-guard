@@ -40,7 +40,8 @@ pub fn prompt_for_comment_interactive<R: BufRead, W: Write>(
             Ok(()) => return Ok(trimmed.to_string()),
             Err(violation) => {
                 if attempt < max_attempts {
-                    writeln!(writer, "Invalid comment: {}", violation).map_err(|e| e.to_string())?;
+                    writeln!(writer, "Invalid comment: {}", violation)
+                        .map_err(|e| e.to_string())?;
                 } else {
                     return Err(format!("Comment validation failed: {}", violation));
                 }

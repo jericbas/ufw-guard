@@ -193,7 +193,14 @@ mod tests {
             CommandClassification::RuleWithValidComment("SSH ingress".to_string())
         );
         assert_eq!(
-            classify_arguments(&to_args(&["insert", "1", "allow", "80", "comment", "HTTP ingress"])),
+            classify_arguments(&to_args(&[
+                "insert",
+                "1",
+                "allow",
+                "80",
+                "comment",
+                "HTTP ingress"
+            ])),
             CommandClassification::RuleWithValidComment("HTTP ingress".to_string())
         );
     }
@@ -209,7 +216,9 @@ mod tests {
         }
 
         match classify_arguments(&to_args(&["allow", "22", "comment", "a"])) {
-            CommandClassification::RuleWithInvalidComment(QualityViolation::TooShort { .. }) => {}
+            CommandClassification::RuleWithInvalidComment(QualityViolation::TooShort {
+                ..
+            }) => {}
             other => panic!("Expected too short error, got {:?}", other),
         }
     }
@@ -229,9 +238,15 @@ mod tests {
     fn test_replace_or_inject_comment() {
         let initial = to_args(&["allow", "22", "comment", "Old comment"]);
         let replaced = replace_or_inject_comment(&initial, "New comment");
-        assert_eq!(replaced, to_args(&["allow", "22", "comment", "New comment"]));
+        assert_eq!(
+            replaced,
+            to_args(&["allow", "22", "comment", "New comment"])
+        );
 
         let injected = replace_or_inject_comment(&to_args(&["allow", "22"]), "New comment");
-        assert_eq!(injected, to_args(&["allow", "22", "comment", "New comment"]));
+        assert_eq!(
+            injected,
+            to_args(&["allow", "22", "comment", "New comment"])
+        );
     }
 }
