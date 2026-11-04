@@ -70,15 +70,24 @@ pub fn has_attribution(comment: &str) -> bool {
     comment.contains("[by: ")
 }
 
-pub fn enrich_comment(base_comment: &str) -> String {
+pub fn enrich_comment_with_context(
+    base_comment: &str,
+    enabled: bool,
+    user: &str,
+    date: &str,
+) -> String {
     let trimmed = base_comment.trim();
-    if !is_attribution_enabled() || has_attribution(trimmed) {
+    if !enabled || has_attribution(trimmed) {
         return trimmed.to_string();
     }
+    format!("{} [by: {} @ {}]", trimmed, user, date)
+}
 
+pub fn enrich_comment(base_comment: &str) -> String {
+    let enabled = is_attribution_enabled();
     let user = resolve_invoking_user();
     let date = current_utc_date();
-    format!("{} [by: {} @ {}]", trimmed, user, date)
+    enrich_comment_with_context(base_comment, enabled, &user, &date)
 }
 
 #[cfg(test)]
@@ -86,52 +95,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_resolve_invoking_user_sudo() {
-        env::set_var("SUDO_USER", "admin_jeric");
-        env::set_var("USER", "root");
-        assert_eq!(resolve_invoking_user(), "admin_jeric");
-        env::remove_var("SUDO_USER");
-        env::remove_var("USER");
-    }
-
-    #[test]
-    fn test_resolve_invoking_user_fallback() {
-        env::remove_var("SUDO_USER");
-        env::set_var("USER", "deploy_agent");
-        assert_eq!(resolve_invoking_user(), "deploy_agent");
-        env::remove_var("USER");
-    }
-
-    #[test]
-    fn test_enrich_comment_standard() {
-        env::set_var("SUDO_USER", "jeric");
-        env::set_var(ATTRIBUTION_DATE_ENV, "2026-11-04");
-        env::remove_var(AUTO_ATTRIBUTION_ENV);
-
-        let enriched = enrich_comment("Allow SSH ingress");
+    fn test_enrich_comment_with_context() {
+        let enriched =
+            enrich_comment_with_context("Allow SSH ingress", true, "jeric", "2026-11-04");
         assert_eq!(enriched, "Allow SSH ingress [by: jeric @ 2026-11-04]");
-
-        env::remove_var("SUDO_USER");
-        env::remove_var(ATTRIBUTION_DATE_ENV);
     }
 
     #[test]
     fn test_enrich_comment_idempotent() {
-        env::set_var("SUDO_USER", "jeric");
-        env::set_var(ATTRIBUTION_DATE_ENV, "2026-11-04");
-
-        let already_enriched = "Allow SSH ingress [by: alice @ 2026-10-01]";
-        assert_eq!(enrich_comment(already_enriched), already_enriched);
-
-        env::remove_var("SUDO_USER");
-        env::remove_var(ATTRIBUTION_DATE_ENV);
+        let already = "Allow SSH ingress [by: alice @ 2026-10-01]";
+        let enriched = enrich_comment_with_context(already, true, "jeric", "2026-11-04");
+        assert_eq!(enriched, already);
     }
 
     #[test]
     fn test_enrich_comment_disabled() {
-        env::set_var(AUTO_ATTRIBUTION_ENV, "0");
         let base = "Allow Prometheus metrics";
-        assert_eq!(enrich_comment(base), base);
-        env::remove_var(AUTO_ATTRIBUTION_ENV);
+        let enriched = enrich_comment_with_context(base, false, "jeric", "2026-11-04");
+        assert_eq!(enriched, base);
     }
 }

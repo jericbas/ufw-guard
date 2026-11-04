@@ -87,13 +87,16 @@ pub fn get_comment_pattern() -> Option<String> {
         .filter(|v| !v.is_empty())
 }
 
-pub fn validate_comment(comment: &str) -> Result<(), QualityViolation> {
+pub fn validate_comment_with_config(
+    comment: &str,
+    min_len: usize,
+    pattern: Option<&str>,
+) -> Result<(), QualityViolation> {
     let trimmed = comment.trim();
     if trimmed.is_empty() {
         return Err(QualityViolation::Empty);
     }
 
-    let min_len = get_min_comment_length();
     if trimmed.chars().count() < min_len {
         return Err(QualityViolation::TooShort {
             actual: trimmed.chars().count(),
@@ -112,16 +115,18 @@ pub fn validate_comment(comment: &str) -> Result<(), QualityViolation> {
         }
     }
 
-    if let Some(pattern) = get_comment_pattern() {
-        match Regex::new(&pattern) {
+    if let Some(pat) = pattern {
+        match Regex::new(pat) {
             Ok(re) => {
                 if !re.is_match(trimmed) {
-                    return Err(QualityViolation::PatternMismatch { pattern });
+                    return Err(QualityViolation::PatternMismatch {
+                        pattern: pat.to_string(),
+                    });
                 }
             }
             Err(err) => {
                 return Err(QualityViolation::InvalidPatternConfig {
-                    pattern,
+                    pattern: pat.to_string(),
                     error: err.to_string(),
                 });
             }
@@ -131,62 +136,67 @@ pub fn validate_comment(comment: &str) -> Result<(), QualityViolation> {
     Ok(())
 }
 
+pub fn validate_comment(comment: &str) -> Result<(), QualityViolation> {
+    let min_len = get_min_comment_length();
+    let pattern = get_comment_pattern();
+    validate_comment_with_config(comment, min_len, pattern.as_deref())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_valid_comments() {
-        assert!(validate_comment("Allow HTTP ingress").is_ok());
-        assert!(validate_comment("JIRA-1234: open port for metrics").is_ok());
-        assert!(validate_comment("Internal VPN access").is_ok());
+        assert!(validate_comment_with_config("Allow HTTP ingress", 4, None).is_ok());
+        assert!(validate_comment_with_config("JIRA-1234: open port", 4, None).is_ok());
+        assert!(validate_comment_with_config("Internal VPN access", 4, None).is_ok());
     }
 
     #[test]
     fn test_empty_or_whitespace() {
-        assert_eq!(validate_comment(""), Err(QualityViolation::Empty));
-        assert_eq!(validate_comment("   "), Err(QualityViolation::Empty));
+        assert_eq!(
+            validate_comment_with_config("", 4, None),
+            Err(QualityViolation::Empty)
+        );
+        assert_eq!(
+            validate_comment_with_config("   ", 4, None),
+            Err(QualityViolation::Empty)
+        );
     }
 
     #[test]
     fn test_too_short() {
-        env::remove_var(MIN_COMMENT_LEN_ENV);
         assert_eq!(
-            validate_comment("SSH"),
-            Err(QualityViolation::TooShort {
-                actual: 3,
-                min: DEFAULT_MIN_COMMENT_LEN
-            })
+            validate_comment_with_config("SSH", 4, None),
+            Err(QualityViolation::TooShort { actual: 3, min: 4 })
         );
         assert_eq!(
-            validate_comment("a"),
-            Err(QualityViolation::TooShort {
-                actual: 1,
-                min: DEFAULT_MIN_COMMENT_LEN
-            })
+            validate_comment_with_config("a", 4, None),
+            Err(QualityViolation::TooShort { actual: 1, min: 4 })
         );
     }
 
     #[test]
     fn test_trivial_placeholders() {
         assert_eq!(
-            validate_comment("test"),
+            validate_comment_with_config("test", 4, None),
             Err(QualityViolation::Placeholder("test".to_string()))
         );
         assert_eq!(
-            validate_comment("TEST"),
+            validate_comment_with_config("TEST", 4, None),
             Err(QualityViolation::Placeholder("TEST".to_string()))
         );
         assert_eq!(
-            validate_comment("todo"),
+            validate_comment_with_config("todo", 4, None),
             Err(QualityViolation::Placeholder("todo".to_string()))
         );
         assert_eq!(
-            validate_comment("temp"),
+            validate_comment_with_config("temp", 4, None),
             Err(QualityViolation::Placeholder("temp".to_string()))
         );
         assert_eq!(
-            validate_comment("none"),
+            validate_comment_with_config("none", 4, None),
             Err(QualityViolation::Placeholder("none".to_string()))
         );
     }
@@ -194,30 +204,29 @@ mod tests {
     #[test]
     fn test_pure_punctuation() {
         assert_eq!(
-            validate_comment("...."),
+            validate_comment_with_config("....", 4, None),
             Err(QualityViolation::NoAlphanumeric)
         );
         assert_eq!(
-            validate_comment("----"),
+            validate_comment_with_config("----", 4, None),
             Err(QualityViolation::NoAlphanumeric)
         );
         assert_eq!(
-            validate_comment("????"),
+            validate_comment_with_config("????", 4, None),
             Err(QualityViolation::NoAlphanumeric)
         );
     }
 
     #[test]
     fn test_pattern_matching() {
-        env::set_var(COMMENT_PATTERN_ENV, r"^\[(ops|sec)\]");
-        assert!(validate_comment("[ops] Ingress for web cluster").is_ok());
-        assert!(validate_comment("[sec] Lockdown port 22").is_ok());
+        let pattern = Some(r"^\[(ops|sec)\]");
+        assert!(validate_comment_with_config("[ops] Ingress for web cluster", 4, pattern).is_ok());
+        assert!(validate_comment_with_config("[sec] Lockdown port 22", 4, pattern).is_ok());
         assert_eq!(
-            validate_comment("Ingress for web cluster"),
+            validate_comment_with_config("Ingress for web cluster", 4, pattern),
             Err(QualityViolation::PatternMismatch {
                 pattern: r"^\[(ops|sec)\]".to_string()
             })
         );
-        env::remove_var(COMMENT_PATTERN_ENV);
     }
 }
