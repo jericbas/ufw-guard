@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Jeric Bas <jericrayebas@gmail.com>"]
 description = "Compiled Rust governance wrapper for UFW enforcing audit comments on firewall rules"
-license = "GPL-3.0-only"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/jericbas/ufw-guard"
 readme = "README.md"
 keywords = ["ufw", "firewall", "security", "governance"]
@@ -19,6 +19,7 @@ name = "ufw"
 path = "src/main.rs"
 
 [dependencies]
+regex-lite = "0.1"
 
 [profile.release]
 opt-level = 3
@@ -31,7 +32,7 @@ strip = true
 name = "ufw-guard"
 maintainer = "Jeric Bas <jericrayebas@gmail.com>"
 copyright = "2026, Jeric Bas"
-license-file = ["LICENSE", "4"]
+license-file = ["LICENSE-MIT", "4"]
 depends = "ufw (>= 0.35)"
 section = "admin"
 priority = "optional"
@@ -42,7 +43,7 @@ assets = [
 [package.metadata.generate-rpm]
 name = "ufw-guard"
 summary = "Compiled Rust governance wrapper for UFW"
-license = "GPL-3.0-only"
+license = "MIT OR Apache-2.0"
 assets = [
     { source = "target/release/ufw", dest = "/usr/local/sbin/ufw", mode = "755" },
 ]

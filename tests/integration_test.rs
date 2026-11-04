@@ -31,21 +31,25 @@ fn setup_mock_ufw() -> (std::path::PathBuf, std::path::PathBuf, std::path::PathB
 #[test]
 fn test_integration_flow() {
     let (temp_dir, mock_bin, log_file) = setup_mock_ufw();
+    let audit_log = temp_dir.join("audit.log");
     let bin = env!("CARGO_BIN_EXE_ufw");
 
     // 1. Status passthrough
     let out = Command::new(bin)
         .arg("status")
         .env("UFW_GUARD_UPSTREAM_PATH", &mock_bin)
+        .env("UFW_GUARD_LOG_FILE", &audit_log)
         .output()
         .unwrap();
     assert!(out.status.success());
     assert_eq!(fs::read_to_string(&log_file).unwrap().trim(), "status");
 
-    // 2. Bypass flag
+    // 2. Bypass flag with audit capture
     let out_bypass = Command::new(bin)
         .args(["allow", "22/tcp", "--force-no-comment"])
         .env("UFW_GUARD_UPSTREAM_PATH", &mock_bin)
+        .env("UFW_GUARD_LOG_FILE", &audit_log)
+        .env("SUDO_USER", "secops_admin")
         .output()
         .unwrap();
     assert!(out_bypass.status.success());
@@ -54,25 +58,50 @@ fn test_integration_flow() {
         "allow 22/tcp"
     );
 
-    // 3. Valid comment rule
+    // 3. Valid comment rule with automatic metadata attribution
     let out_rule = Command::new(bin)
         .args(["allow", "443", "comment", "Web Ingress"])
         .env("UFW_GUARD_UPSTREAM_PATH", &mock_bin)
+        .env("UFW_GUARD_LOG_FILE", &audit_log)
+        .env("UFW_GUARD_AUTO_ATTRIBUTION", "1")
+        .env("UFW_GUARD_ATTRIBUTION_DATE", "2026-11-04")
+        .env("SUDO_USER", "secops_admin")
         .output()
         .unwrap();
     assert!(out_rule.status.success());
     assert_eq!(
         fs::read_to_string(&log_file).unwrap().trim(),
-        "allow 443 comment Web Ingress"
+        "allow 443 comment Web Ingress [by: secops_admin @ 2026-11-04]"
     );
 
     // 4. Missing comment in non-interactive environment fails
     let out_missing = Command::new(bin)
         .args(["allow", "80"])
         .env("UFW_GUARD_UPSTREAM_PATH", &mock_bin)
+        .env("UFW_GUARD_LOG_FILE", &audit_log)
+        .env("UFW_GUARD_NON_INTERACTIVE", "1")
         .output()
         .unwrap();
     assert!(!out_missing.status.success());
+
+    // 5. Placeholder comment rejection in non-interactive environment fails
+    let out_placeholder = Command::new(bin)
+        .args(["allow", "80", "comment", "test"])
+        .env("UFW_GUARD_UPSTREAM_PATH", &mock_bin)
+        .env("UFW_GUARD_LOG_FILE", &audit_log)
+        .env("UFW_GUARD_NON_INTERACTIVE", "1")
+        .output()
+        .unwrap();
+    assert!(!out_placeholder.status.success());
+    let stderr_str = String::from_utf8(out_placeholder.stderr).unwrap();
+    assert!(stderr_str.contains("generic placeholder"));
+
+    // 6. Verify audit log captures events
+    let audit_content = fs::read_to_string(&audit_log).unwrap();
+    assert!(audit_content.contains(r#""event":"bypass""#));
+    assert!(audit_content.contains(r#""user":"secops_admin""#));
+    assert!(audit_content.contains(r#""event":"rule_executed""#));
+    assert!(audit_content.contains(r#""event":"rule_rejected""#));
 
     let _ = fs::remove_dir_all(&temp_dir);
 }

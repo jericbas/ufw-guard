@@ -67,7 +67,7 @@ jobs:
           ARCH="x86_64"
           TAR_DIR="ufw-guard-${VERSION}-${ARCH}"
           mkdir -p "${TAR_DIR}" dist
-          cp target/release/ufw LICENSE README.md "${TAR_DIR}/"
+          cp target/release/ufw LICENSE-MIT LICENSE-APACHE README.md "${TAR_DIR}/"
           tar -czvf "dist/ufw-guard-${VERSION}-${ARCH}.tar.gz" "${TAR_DIR}"
           cp target/debian/*.deb dist/
           cp target/generate-rpm/*.rpm dist/
