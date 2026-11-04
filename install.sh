@@ -28,8 +28,13 @@ case "${ARCH}" in
         RPM_ARCH="x86_64"
         TAR_ARCH="x86_64"
         ;;
+    aarch64|arm64)
+        DEB_ARCH="arm64"
+        RPM_ARCH="aarch64"
+        TAR_ARCH="aarch64"
+        ;;
     *)
-        error "Unsupported system architecture: ${ARCH}. Only x86_64 is supported currently."
+        error "Unsupported system architecture: ${ARCH}. Supported: x86_64, aarch64."
         ;;
 esac
 
@@ -49,11 +54,32 @@ TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "${TMP_DIR}"' EXIT
 cd "${TMP_DIR}"
 
+BASE_URL="https://github.com/${REPO}/releases/download/${LATEST_TAG}"
+
+log "Downloading SHA256SUMS manifest..."
+curl -fsSL -o SHA256SUMS "${BASE_URL}/SHA256SUMS" \
+    || error "Could not download SHA256SUMS from ${BASE_URL}; refusing to install unverified artifacts."
+
+# Verify a downloaded artifact against SHA256SUMS; abort on any mismatch.
+verify_checksum() {
+    local file="$1"
+    local entry
+    entry="$(grep -E "[[:space:]]\*?${file//./\.}\$" SHA256SUMS || true)"
+    if [ -z "${entry}" ]; then
+        error "No SHA256SUMS entry for ${file}; refusing to install."
+    fi
+    if ! echo "${entry}" | sha256sum -c - >/dev/null 2>&1; then
+        error "Checksum verification FAILED for ${file}. The download may be corrupted or tampered with; aborting."
+    fi
+    log "Checksum verified: ${file}"
+}
+
 if command -v apt-get >/dev/null 2>&1; then
     DEB_NAME="ufw-guard_${VERSION}_${DEB_ARCH}.deb"
     DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${LATEST_TAG}/${DEB_NAME}"
     log "Downloading Debian package: ${DEB_NAME}..."
     if curl -fsSL -o "${DEB_NAME}" "${DOWNLOAD_URL}"; then
+        verify_checksum "${DEB_NAME}"
         log "Installing via apt..."
         apt-get update -qq || true
         apt-get install -y ./"${DEB_NAME}"
@@ -66,6 +92,7 @@ elif command -v dnf >/dev/null 2>&1 || command -v rpm >/dev/null 2>&1; then
     DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${LATEST_TAG}/${RPM_NAME}"
     log "Downloading RPM package: ${RPM_NAME}..."
     if curl -fsSL -o "${RPM_NAME}" "${DOWNLOAD_URL}"; then
+        verify_checksum "${RPM_NAME}"
         if command -v dnf >/dev/null 2>&1; then
             log "Installing via dnf..."
             dnf install -y ./"${RPM_NAME}"
@@ -86,6 +113,7 @@ if [ "${FALLBACK_NEEDED:-0}" -eq 1 ]; then
     DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${LATEST_TAG}/${TAR_NAME}"
     log "Downloading binary tarball: ${TAR_NAME}..."
     curl -fsSL -o "${TAR_NAME}" "${DOWNLOAD_URL}"
+    verify_checksum "${TAR_NAME}"
     tar -xzf "${TAR_NAME}"
     mkdir -p /usr/local/sbin
     install -m 755 "ufw-guard-${VERSION}-${TAR_ARCH}/ufw" "${INSTALL_BIN}"
