@@ -27,6 +27,8 @@ cargo build --release
 sudo install -m 755 target/release/ufw /usr/local/sbin/ufw
 ```
 
+> Need to revert to upstream UFW? See [UNINSTALL.md](UNINSTALL.md).
+
 ---
 
 ## Usage
@@ -91,17 +93,6 @@ User / Automation Invocation: `ufw allow 22/tcp`
 
 5. **Authorship Protection & Open Source Governance**  
    Licensed under GNU General Public License v3.0 (GPLv3). Systems software managing core perimeter security must remain open, auditable, and protected against proprietary relicensing.
-
----
-
-## Uninstallation
-
-Removing `ufw-guard` restores direct execution of upstream `/usr/sbin/ufw` without altering any existing firewall rules or comments:
-
-- **Debian / Ubuntu (`.deb`)**: `sudo apt remove ufw-guard && hash -r`
-- **RHEL / Fedora (`.rpm`)**: `sudo dnf remove ufw-guard && hash -r`
-- **Binary / One-Liner / Source**: `sudo rm -f /usr/local/sbin/ufw && hash -r`
-- **Cargo**: `cargo uninstall ufw-guard`
 
 ---
 
