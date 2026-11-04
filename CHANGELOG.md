@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/jericbas/ufw-guard/compare/v0.4.0...v0.5.0) (2026-11-04)
+
+
+### Features
+
+* compliance audit/remediation and system config file ([#28](https://github.com/jericbas/ufw-guard/issues/28)) ([804a49c](https://github.com/jericbas/ufw-guard/commit/804a49c34678271c487cb1471025930d0020a5a4))
+
 ## [0.4.0](https://github.com/jericbas/ufw-guard/compare/v0.3.0...v0.4.0) (2026-11-04)
 
 
