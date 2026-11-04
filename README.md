@@ -10,6 +10,7 @@
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jericbas/ufw-guard/main/install.sh | sudo bash
 ```
+The installer detects `x86_64` or `aarch64`/`arm64`, downloads the matching package together with `SHA256SUMS`, and aborts if the checksum is missing or does not match.
 
 ### Via Cargo
 ```bash
@@ -17,9 +18,20 @@ cargo install ufw-guard
 ```
 
 ### Native Packages
-Download `.deb` or `.rpm` from the [Latest Release](https://github.com/jericbas/ufw-guard/releases/latest):
-- **Debian / Ubuntu**: `sudo apt install ./ufw-guard_<version>_amd64.deb`
-- **RHEL / Fedora**: `sudo dnf install ./ufw-guard-<version>-1.x86_64.rpm`
+Download `.deb`, `.rpm` or `.tar.gz` from the [Latest Release](https://github.com/jericbas/ufw-guard/releases/latest). Release binaries are statically linked (`musl`), so they do not depend on the host glibc version.
+
+| Architecture | Debian / Ubuntu | RHEL / Fedora | Tarball |
+|---|---|---|---|
+| x86_64 | `ufw-guard_<version>_amd64.deb` | `ufw-guard-<version>-1.x86_64.rpm` | `ufw-guard-<version>-x86_64.tar.gz` |
+| ARM64 (Graviton, Raspberry Pi, Ampere) | `ufw-guard_<version>_arm64.deb` | `ufw-guard-<version>-1.aarch64.rpm` | `ufw-guard-<version>-aarch64.tar.gz` |
+
+```bash
+sudo apt install ./ufw-guard_<version>_amd64.deb      # or _arm64.deb
+sudo dnf install ./ufw-guard-<version>-1.x86_64.rpm   # or .aarch64.rpm
+
+# Verify any download against the published manifest:
+sha256sum -c SHA256SUMS --ignore-missing
+```
 
 ### From Source
 ```bash
@@ -86,10 +98,13 @@ User / Automation Invocation: `ufw allow 22/tcp`
         ▼ (Standard PATH Precedence: /usr/local/sbin before /usr/sbin)
 ┌────────────────────────────────────────────────────────┐
 │ /usr/local/sbin/ufw (ufw-guard compiled Rust wrapper)   │
+│  0. Load /etc/ufw/ufw-guard.conf (if present)          │
 │  1. Check UFW_GUARD_BYPASS or --force-no-comment       │
+│     (unless allow_bypass = false)                      │
 │  2. Inspect subcommand (allow, deny, reject, etc.)     │
 │  3. Verify non-empty `comment` parameter               │
 │  4. Prompt interactively if missing (or exit on non-tty)│
+│  (--audit / --remediate scan existing rules instead)   │
 └────────────────────────────────────────────────────────┘
         │
         ▼ (Exec replacement / execvp)
@@ -112,7 +127,7 @@ User / Automation Invocation: `ufw allow 22/tcp`
    Wrapper behavior is transparent. Non-rule commands (`status`, `enable`, `disable`, `reload`, `reset`, `delete`) pass cleanly to upstream UFW without impedance. Process execution preserves standard streams (`stdin`, `stdout`, `stderr`), exit status codes, and terminal TTY controls.
 
 3. **Fail-Safe & Break-Glass Design**  
-   Critical infrastructure must prioritize recoverability during emergencies. Administrators can bypass enforcement using `--force-no-comment` or `UFW_GUARD_BYPASS=1`, stripping wrapper-specific arguments before delegating upstream.
+   Critical infrastructure must prioritize recoverability during emergencies. Administrators can bypass enforcement using `--force-no-comment` or `UFW_GUARD_BYPASS=1`, stripping wrapper-specific arguments before delegating upstream. Strict environments can disable bypass entirely with `allow_bypass = false` in `/etc/ufw/ufw-guard.conf`.
 
 4. **Zero Profile Modification**  
    No shell startup files (`~/.bashrc`, `/etc/profile`, aliases) are altered. `ufw-guard` relies on standard Filesystem Hierarchy Standard (FHS) PATH precedence: `/usr/local/sbin/ufw` executes naturally before `/usr/sbin/ufw`.

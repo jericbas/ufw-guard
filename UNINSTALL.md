@@ -24,6 +24,12 @@ sudo rm -f /usr/local/sbin/ufw && hash -r
 cargo uninstall ufw-guard
 ```
 
+### Optional: remove configuration and logs
+`ufw-guard` never creates these itself; delete them if you added them:
+```bash
+sudo rm -f /etc/ufw/ufw-guard.conf /var/log/ufw-guard.log
+```
+
 ---
 
 ## 2. Verify Upstream Restoration
