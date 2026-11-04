@@ -1,5 +1,7 @@
 //! Argument parsing and rule classification for UFW commands.
 
+use crate::quality::{validate_comment, QualityViolation};
+
 pub const RULE_SUBCOMMANDS: &[&str] = &[
     "allow", "deny", "reject", "limit", "route", "insert", "prepend",
 ];
@@ -27,7 +29,8 @@ pub const BYPASS_ENV: &str = "UFW_GUARD_BYPASS";
 pub enum CommandClassification {
     Bypass,
     PassThrough,
-    RuleWithValidComment,
+    RuleWithValidComment(String),
+    RuleWithInvalidComment(QualityViolation),
     RuleMissingComment,
 }
 
@@ -48,6 +51,19 @@ pub fn is_env_bypass_set() -> bool {
     std::env::var(BYPASS_ENV)
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
+}
+
+pub fn extract_comment(args: &[String]) -> Option<String> {
+    for (idx, arg) in args.iter().enumerate() {
+        if arg.eq_ignore_ascii_case("comment") {
+            if let Some(next_arg) = args.get(idx + 1) {
+                if !next_arg.starts_with("--") {
+                    return Some(next_arg.clone());
+                }
+            }
+        }
+    }
+    None
 }
 
 pub fn classify_arguments(args: &[String]) -> CommandClassification {
@@ -75,30 +91,55 @@ pub fn classify_arguments(args: &[String]) -> CommandClassification {
         return CommandClassification::PassThrough;
     }
 
-    if has_valid_comment(args) {
-        CommandClassification::RuleWithValidComment
-    } else {
-        CommandClassification::RuleMissingComment
+    match extract_comment(args) {
+        Some(comment) => match validate_comment(&comment) {
+            Ok(()) => CommandClassification::RuleWithValidComment(comment),
+            Err(violation) => CommandClassification::RuleWithInvalidComment(violation),
+        },
+        None => CommandClassification::RuleMissingComment,
     }
 }
 
 pub fn has_valid_comment(args: &[String]) -> bool {
-    for (idx, arg) in args.iter().enumerate() {
-        if arg.eq_ignore_ascii_case("comment") {
-            if let Some(next_arg) = args.get(idx + 1) {
-                if !next_arg.trim().is_empty() && !next_arg.starts_with("--") {
-                    return true;
-                }
-            }
-        }
-    }
-    false
+    matches!(
+        classify_arguments(args),
+        CommandClassification::RuleWithValidComment(_)
+    )
 }
 
-pub fn inject_comment(mut args: Vec<String>, comment: &str) -> Vec<String> {
-    args.push("comment".to_string());
-    args.push(comment.to_string());
-    args
+pub fn replace_or_inject_comment(args: &[String], new_comment: &str) -> Vec<String> {
+    let mut result = Vec::with_capacity(args.len() + 2);
+    let mut found = false;
+    let mut skip_next = false;
+
+    for (idx, arg) in args.iter().enumerate() {
+        if skip_next {
+            skip_next = false;
+            continue;
+        }
+
+        if arg.eq_ignore_ascii_case("comment") {
+            found = true;
+            result.push(arg.clone());
+            result.push(new_comment.to_string());
+            if args.get(idx + 1).is_some() {
+                skip_next = true;
+            }
+        } else {
+            result.push(arg.clone());
+        }
+    }
+
+    if !found {
+        result.push("comment".to_string());
+        result.push(new_comment.to_string());
+    }
+
+    result
+}
+
+pub fn inject_comment(args: Vec<String>, comment: &str) -> Vec<String> {
+    replace_or_inject_comment(&args, comment)
 }
 
 #[cfg(test)]
@@ -149,12 +190,28 @@ mod tests {
     fn test_rule_with_comment() {
         assert_eq!(
             classify_arguments(&to_args(&["allow", "22", "comment", "SSH ingress"])),
-            CommandClassification::RuleWithValidComment
+            CommandClassification::RuleWithValidComment("SSH ingress".to_string())
         );
         assert_eq!(
-            classify_arguments(&to_args(&["insert", "1", "allow", "80", "comment", "HTTP"])),
-            CommandClassification::RuleWithValidComment
+            classify_arguments(&to_args(&["insert", "1", "allow", "80", "comment", "HTTP ingress"])),
+            CommandClassification::RuleWithValidComment("HTTP ingress".to_string())
         );
+    }
+
+    #[test]
+    fn test_rule_with_invalid_comment() {
+        std::env::remove_var(crate::quality::MIN_COMMENT_LEN_ENV);
+        match classify_arguments(&to_args(&["allow", "22", "comment", "test"])) {
+            CommandClassification::RuleWithInvalidComment(QualityViolation::Placeholder(p)) => {
+                assert_eq!(p, "test");
+            }
+            other => panic!("Expected invalid comment placeholder, got {:?}", other),
+        }
+
+        match classify_arguments(&to_args(&["allow", "22", "comment", "a"])) {
+            CommandClassification::RuleWithInvalidComment(QualityViolation::TooShort { .. }) => {}
+            other => panic!("Expected too short error, got {:?}", other),
+        }
     }
 
     #[test]
@@ -169,8 +226,12 @@ mod tests {
     }
 
     #[test]
-    fn test_inject_comment() {
-        let injected = inject_comment(to_args(&["allow", "22"]), "Admin SSH");
-        assert_eq!(injected, to_args(&["allow", "22", "comment", "Admin SSH"]));
+    fn test_replace_or_inject_comment() {
+        let initial = to_args(&["allow", "22", "comment", "Old comment"]);
+        let replaced = replace_or_inject_comment(&initial, "New comment");
+        assert_eq!(replaced, to_args(&["allow", "22", "comment", "New comment"]));
+
+        let injected = replace_or_inject_comment(&to_args(&["allow", "22"]), "New comment");
+        assert_eq!(injected, to_args(&["allow", "22", "comment", "New comment"]));
     }
 }
