@@ -1,16 +1,89 @@
 //! Policy engine combining argument classification, quality enforcement, and interactive remediation.
 
 use crate::args::{
-    classify_arguments, replace_or_inject_comment, strip_bypass_flag, CommandClassification,
+    classify_arguments_with, extract_comment, is_delete_command, replace_or_inject_comment,
+    strip_bypass_flag, strip_comment, CommandClassification,
 };
 use crate::attribution::enrich_comment;
 use crate::audit::{log_event, AuditEventType};
+use crate::config::{self, Config};
 use crate::prompt::{is_interactive, resolve_missing_comment};
+use crate::quality::validate_comment;
+
+/// Enforce `require_comment_on_delete`: the comment is recorded in the audit log and
+/// stripped, because upstream `ufw delete` matches rules by specification only.
+fn enforce_delete_comment(raw_args: &[String]) -> Result<Vec<String>, String> {
+    let comment = match extract_comment(raw_args) {
+        Some(c) => match validate_comment(&c) {
+            Ok(()) => Ok(c),
+            Err(v) if is_interactive() => {
+                eprintln!("ufw-guard: {}", v);
+                resolve_missing_comment()
+            }
+            Err(v) => Err(format!("Delete comment violates governance policy: {}", v)),
+        },
+        None if is_interactive() => resolve_missing_comment(),
+        None => Err(
+            "Deleting a firewall rule requires `comment \"<reason>\"` (require_comment_on_delete = true)."
+                .to_string(),
+        ),
+    };
+    match comment {
+        Ok(c) => {
+            let enriched = enrich_comment(&c);
+            let forwarded = strip_comment(&strip_bypass_flag(raw_args).0);
+            log_event(
+                AuditEventType::RuleExecuted,
+                "success",
+                raw_args,
+                Some(&forwarded),
+                Some(&enriched),
+                None,
+            );
+            Ok(forwarded)
+        }
+        Err(e) => {
+            log_event(
+                AuditEventType::RuleRejected,
+                "rejected",
+                raw_args,
+                None,
+                None,
+                Some(&e),
+            );
+            Err(e)
+        }
+    }
+}
 
 pub fn enforce_policy(raw_args: &[String]) -> Result<Vec<String>, String> {
-    let classification = classify_arguments(raw_args);
+    let cfg: Config = config::load()?;
+    enforce_policy_with(raw_args, &cfg)
+}
+
+pub fn enforce_policy_with(raw_args: &[String], cfg: &Config) -> Result<Vec<String>, String> {
+    let classification = classify_arguments_with(raw_args, cfg.allow_bypass);
 
     match classification {
+        CommandClassification::BypassDenied => {
+            let err_msg =
+                "Bypass is disabled by system policy (allow_bypass = false in ufw-guard.conf)."
+                    .to_string();
+            log_event(
+                AuditEventType::RuleRejected,
+                "rejected",
+                raw_args,
+                None,
+                None,
+                Some(&err_msg),
+            );
+            Err(err_msg)
+        }
+        CommandClassification::PassThrough
+            if cfg.require_comment_on_delete && is_delete_command(raw_args) =>
+        {
+            enforce_delete_comment(raw_args)
+        }
         CommandClassification::Bypass => {
             let (stripped, _) = strip_bypass_flag(raw_args);
             log_event(
@@ -110,6 +183,30 @@ mod tests {
 
     fn to_args(s: &[&str]) -> Vec<String> {
         s.iter().map(|&x| x.to_string()).collect()
+    }
+
+    #[test]
+    fn test_bypass_denied_by_config() {
+        let cfg = Config {
+            allow_bypass: false,
+            ..Config::default()
+        };
+        let args = to_args(&["allow", "22", "--force-no-comment"]);
+        let err = enforce_policy_with(&args, &cfg).unwrap_err();
+        assert!(err.contains("Bypass is disabled"));
+    }
+
+    #[test]
+    fn test_delete_requires_comment_and_strips_it() {
+        let cfg = Config {
+            require_comment_on_delete: true,
+            ..Config::default()
+        };
+        let args = to_args(&["delete", "allow", "22", "comment", "Closing legacy SSH"]);
+        assert_eq!(
+            enforce_policy_with(&args, &cfg).unwrap(),
+            to_args(&["delete", "allow", "22"])
+        );
     }
 
     #[test]

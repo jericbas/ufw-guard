@@ -28,6 +28,8 @@ pub const BYPASS_ENV: &str = "UFW_GUARD_BYPASS";
 #[derive(Debug, PartialEq, Eq)]
 pub enum CommandClassification {
     Bypass,
+    /// `--force-no-comment` supplied while `allow_bypass = false` in the system config.
+    BypassDenied,
     PassThrough,
     RuleWithValidComment(String),
     RuleWithInvalidComment(QualityViolation),
@@ -67,8 +69,15 @@ pub fn extract_comment(args: &[String]) -> Option<String> {
 }
 
 pub fn classify_arguments(args: &[String]) -> CommandClassification {
+    classify_arguments_with(args, crate::config::current().allow_bypass)
+}
+
+pub fn classify_arguments_with(args: &[String], allow_bypass: bool) -> CommandClassification {
     let (_, had_bypass_flag) = strip_bypass_flag(args);
-    if had_bypass_flag || is_env_bypass_set() {
+    if had_bypass_flag && !allow_bypass {
+        return CommandClassification::BypassDenied;
+    }
+    if had_bypass_flag || (allow_bypass && is_env_bypass_set()) {
         return CommandClassification::Bypass;
     }
 
@@ -138,12 +147,52 @@ pub fn replace_or_inject_comment(args: &[String], new_comment: &str) -> Vec<Stri
     result
 }
 
+/// Remove `comment <text>` from an argument list (used where upstream must not see it).
+pub fn strip_comment(args: &[String]) -> Vec<String> {
+    let mut result = Vec::with_capacity(args.len());
+    let mut idx = 0;
+    while idx < args.len() {
+        if args[idx].eq_ignore_ascii_case("comment") {
+            idx += 2;
+        } else {
+            result.push(args[idx].clone());
+            idx += 1;
+        }
+    }
+    result
+}
+
+pub fn is_delete_command(args: &[String]) -> bool {
+    args.iter().any(|a| a == "delete")
+}
+
 pub fn inject_comment(args: Vec<String>, comment: &str) -> Vec<String> {
     replace_or_inject_comment(&args, comment)
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn test_strip_comment_and_bypass_denied() {
+        let a: Vec<String> = ["delete", "allow", "22", "comment", "close ssh"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert_eq!(strip_comment(&a), vec!["delete", "allow", "22"]);
+        let b: Vec<String> = ["allow", "22", "--force-no-comment"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert_eq!(
+            classify_arguments_with(&b, false),
+            CommandClassification::BypassDenied
+        );
+        assert_eq!(
+            classify_arguments_with(&b, true),
+            CommandClassification::Bypass
+        );
+    }
+
     use super::*;
 
     fn to_args(s: &[&str]) -> Vec<String> {

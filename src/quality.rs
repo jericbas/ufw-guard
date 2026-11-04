@@ -76,6 +76,7 @@ pub fn get_min_comment_length() -> usize {
     env::var(MIN_COMMENT_LEN_ENV)
         .ok()
         .and_then(|v| v.trim().parse::<usize>().ok())
+        .or_else(|| crate::config::current().min_comment_length)
         .unwrap_or(DEFAULT_MIN_COMMENT_LEN)
 }
 
@@ -85,6 +86,7 @@ pub fn get_comment_pattern() -> Option<String> {
         .ok()
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
+        .or_else(|| crate::config::current().comment_pattern)
 }
 
 pub fn validate_comment_with_config(
