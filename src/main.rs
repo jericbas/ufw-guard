@@ -1,12 +1,10 @@
 //! ufw-guard: Enforces comment governance before delegating to upstream UFW.
 
-pub mod args;
-pub mod executor;
-pub mod policy;
-pub mod prompt;
-
 use std::env;
 use std::process;
+
+use ufw_guard::executor;
+use ufw_guard::policy;
 
 fn main() {
     let raw_args: Vec<String> = env::args().skip(1).collect();
