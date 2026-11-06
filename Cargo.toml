@@ -2,7 +2,7 @@
 name = "ufw-guard"
 version = "0.5.0"
 edition = "2021"
-authors = ["Jeric Bas <jericrayebas@gmail.com>"]
+authors = ["Jeric Bas <jeric.codes@proton.me>"]
 description = "Compiled Rust governance wrapper for UFW enforcing audit comments on firewall rules"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/jericbas/ufw-guard"
@@ -30,7 +30,7 @@ strip = true
 
 [package.metadata.deb]
 name = "ufw-guard"
-maintainer = "Jeric Bas <jericrayebas@gmail.com>"
+maintainer = "Jeric Bas <jeric.codes@proton.me>"
 copyright = "2026, Jeric Bas"
 license-file = ["LICENSE-MIT", "4"]
 depends = "ufw (>= 0.35)"
