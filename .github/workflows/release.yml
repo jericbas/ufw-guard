@@ -95,6 +95,10 @@ jobs:
           TAR_DIR="ufw-guard-${VERSION}-${ARCH}"
           mkdir -p "${TAR_DIR}" dist
           cp "target/${{ matrix.target }}/release/ufw" LICENSE-MIT LICENSE-APACHE README.md "${TAR_DIR}/"
+          install -D -m 644 man/ufw-guard.8 "${TAR_DIR}/share/man/man8/ufw-guard.8"
+          install -D -m 644 completions/bash/ufw "${TAR_DIR}/share/ufw-guard/completions/bash/ufw"
+          install -D -m 644 completions/zsh/_ufw "${TAR_DIR}/share/ufw-guard/completions/zsh/_ufw"
+          install -D -m 644 completions/fish/ufw.fish "${TAR_DIR}/share/ufw-guard/completions/fish/ufw.fish"
           tar -czvf "dist/ufw-guard-${VERSION}-${ARCH}.tar.gz" "${TAR_DIR}"
           cp target/${{ matrix.target }}/debian/*.deb dist/
           cp target/${{ matrix.target }}/generate-rpm/*.rpm dist/

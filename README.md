@@ -41,6 +41,25 @@ sudo install -m 755 target/release/ufw /usr/local/sbin/ufw
 
 > Need to revert to upstream UFW? See [UNINSTALL.md](UNINSTALL.md).
 
+Native packages install the `ufw-guard(8)` manual and Bash, Zsh, and Fish
+completion scripts under `/usr/share/ufw-guard/completions/`. The scripts use a
+namespaced directory so installation does not replace UFW's own shell
+completions. Enable them from your shell startup file:
+
+```bash
+# Bash
+source /usr/share/ufw-guard/completions/bash/ufw
+
+# Zsh
+fpath=(/usr/share/ufw-guard/completions/zsh $fpath)
+autoload -Uz compinit && compinit
+
+# Fish
+source /usr/share/ufw-guard/completions/fish/ufw.fish
+```
+
+Tarballs contain the same paths under `share/`.
+
 ---
 
 ## Usage
