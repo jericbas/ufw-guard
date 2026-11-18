@@ -76,6 +76,9 @@ Tarballs contain the same paths under `share/`.
 # Rule commands require an audit comment:
 ufw allow 22/tcp comment "Allow SSH ingress"
 
+# Automatically remove a temporary rule after two hours:
+ufw allow 22/tcp comment "Temporary SSH access" --ttl 2h
+
 # Missing comments trigger an interactive prompt (or deterministically error in CI/CD non-interactive sessions):
 ufw allow 80/tcp
 
@@ -88,6 +91,15 @@ ufw status verbose
 ufw reload
 ufw enable
 ```
+
+On interactive terminals, a rule without `--ttl` prompts for an expiration;
+press Enter to make it permanent. Non-interactive invocations also create
+permanent rules by default and print a warning. Use `--no-ttl` or `--permanent`
+to skip the prompt explicitly. TTL rules store their duration and expiration
+time in the audit comment and require `systemd-run` to schedule deletion.
+The minimum accepted TTL is one minute.
+The transient timer does not survive a reboot before expiration; remove or
+recreate the rule after reboot if the timer has not run.
 
 ### Compliance audit and remediation
 

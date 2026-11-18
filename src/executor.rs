@@ -5,7 +5,7 @@ use std::os::unix::fs::PermissionsExt;
 #[cfg(unix)]
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 pub const DEFAULT_UPSTREAM_PATH: &str = "/usr/sbin/ufw";
 pub const DIVERTED_UPSTREAM_PATH: &str = "/usr/sbin/ufw.real";
@@ -82,6 +82,31 @@ pub fn execute_upstream(path: &Path, args: &[String]) -> Result<(), String> {
             .map_err(|e| format!("Error waiting on child: {}", e))?;
         std::process::exit(status.code().unwrap_or(1));
     }
+}
+
+pub fn schedule_rule_revocation(
+    ttl: &str,
+    wrapper: &Path,
+    marker: &str,
+    upstream: &Path,
+    args: &[String],
+) -> Result<(), String> {
+    let output = Command::new("systemd-run")
+        .args(crate::ttl_revocation::systemd_run_arguments(
+            ttl, wrapper, marker, upstream, args,
+        ))
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|e| format!("cannot schedule TTL revocation with systemd-run: {}", e))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!(
+            "systemd-run could not schedule TTL revocation ({}): {}",
+            output.status,
+            stderr.trim()
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
