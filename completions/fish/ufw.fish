@@ -1,0 +1,7 @@
+complete -c ufw -f -n '__fish_use_subcommand' -a 'allow deny reject limit route insert prepend delete status enable disable reload reset default logging app'
+complete -c ufw -l force-no-comment -d 'Bypass comment governance for this invocation'
+complete -c ufw -l audit -d 'Audit existing firewall rules'
+complete -c ufw -l remediate -d 'Interactively remediate uncommented rules'
+complete -c ufw -l help -s h -d 'Display help'
+complete -c ufw -l version -s v -d 'Display version'
+complete -c ufw -f -n '__fish_seen_subcommand_from allow deny reject limit route insert prepend; and not __fish_seen_subcommand_from comment' -a comment -d 'Add an audit comment'

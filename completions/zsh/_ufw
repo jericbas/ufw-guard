@@ -1,0 +1,27 @@
+#compdef ufw
+
+_ufw() {
+    local -a subcommands options
+    subcommands=(allow deny reject limit route insert prepend delete status enable disable reload reset default logging app)
+    options=(--force-no-comment --audit --remediate --help --version)
+
+    if [[ ${words[CURRENT]} == -* ]]; then
+        _describe 'ufw-guard option' options
+        return
+    fi
+
+    if (( CURRENT == 2 )); then
+        _describe 'UFW subcommand' subcommands
+        _describe 'ufw-guard option' options
+        return
+    fi
+
+    if [[ ${words[CURRENT-1]} == comment ]]; then
+        _message 'audit comment'
+        return
+    fi
+
+    if (( CURRENT > 2 )) && (( ${subcommands[(Ie)${words[2]}]} )); then
+        _wanted comments expl 'audit comment' compadd comment
+    fi
+}
