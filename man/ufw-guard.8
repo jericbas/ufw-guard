@@ -1,0 +1,89 @@
+.TH UFW-GUARD 8 "November 2026" "ufw-guard 0.5.0" "System Administration"
+.SH NAME
+ufw-guard \- enforce audit comments on UFW firewall rules
+.SH SYNOPSIS
+.B ufw
+.RI [ options ]
+.RI [ subcommand ]
+.RI [ arguments ]
+.SH DESCRIPTION
+.B ufw-guard
+provides the
+.B ufw
+command as a governance wrapper. Rule creation commands are checked for a valid audit comment before the original UFW program runs. Other commands pass through to UFW.
+.SH RULE COMMANDS
+The wrapper enforces comments on
+.BR allow , deny , reject , limit , route , insert ,
+and
+.BR prepend .
+Supply a reason using
+.BR comment :
+.PP
+.B ufw allow 22/tcp comment "Allow SSH ingress"
+.PP
+If the comment is missing, an interactive terminal prompts for one. A non-interactive invocation without a comment fails with an error.
+.SH OPTIONS
+.TP
+.B --force-no-comment
+Bypass comment enforcement for this invocation. The flag is removed before calling UFW. This bypass is unavailable when
+.B allow_bypass = false
+is set in the configuration file.
+.TP
+.B --audit
+Report existing firewall rules that lack valid comments. Exit status 2 means non-compliant rules were found.
+.TP
+.B --remediate
+Interactively add comments to existing rules that lack them.
+.TP
+.B --help, -h
+Display help.
+.TP
+.B --version, -v
+Display version.
+.SH ENVIRONMENT
+.TP
+.B UFW_GUARD_BYPASS
+Set to
+.B 1
+or
+.B true
+to bypass comment enforcement, unless bypass is disabled in configuration.
+.TP
+.B UFW_GUARD_CONFIG
+Use an alternate configuration file instead of
+.IR /etc/ufw/ufw-guard.conf .
+.TP
+.B UFW_GUARD_NON_INTERACTIVE
+Disable interactive prompts when set to
+.BR 1 .
+.TP
+.B UFW_GUARD_UPSTREAM_PATH
+Select the path of the upstream UFW executable.
+.SH CONFIGURATION
+The optional
+.I /etc/ufw/ufw-guard.conf
+file controls
+.BR allow_bypass , min_comment_length , comment_pattern , require_comment_on_delete ,
+and
+.BR auto_append_user .
+See
+the project README for examples.
+.SH FILES
+.TP
+.I /etc/ufw/ufw-guard.conf
+Optional system policy.
+.TP
+.I /usr/local/sbin/ufw
+Installed governance wrapper.
+.TP
+.I /usr/sbin/ufw
+Upstream UFW program, unless overridden by
+.BR UFW_GUARD_UPSTREAM_PATH .
+.SH SECURITY
+The bypass flag and environment variable are intended for emergency use. Disable bypass in system configuration for strict environments. Comments are audit metadata and do not replace firewall access controls.
+.SH SEE ALSO
+.BR ufw (8)
+.SH BUGS
+Report issues at https://github.com/jericbas/ufw-guard/issues.
+.SH AUTHORS
+Jeric Bas <jeric.codes@proton.me>.

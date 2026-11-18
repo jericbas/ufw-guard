@@ -1,0 +1,27 @@
+_ufw_guard_complete() {
+    local cur prev words cword
+    _init_completion || return
+
+    local subcommands="allow deny reject limit route insert prepend delete status enable disable reload reset default logging app"
+    local options="--force-no-comment --audit --remediate --help --version"
+
+    if [[ ${COMP_WORDS[COMP_CWORD]} == -* ]]; then
+        COMPREPLY=( $(compgen -W "$options" -- "$cur") )
+        return
+    fi
+
+    if [[ $COMP_CWORD -le 1 ]]; then
+        COMPREPLY=( $(compgen -W "$subcommands $options" -- "$cur") )
+        return
+    fi
+
+    if [[ $prev == comment ]]; then
+        return
+    fi
+
+    if [[ " $subcommands " == *" ${COMP_WORDS[1]} "* ]]; then
+        COMPREPLY=( $(compgen -W "comment" -- "$cur") )
+    fi
+}
+
+complete -F _ufw_guard_complete ufw

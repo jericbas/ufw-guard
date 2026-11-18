@@ -39,6 +39,10 @@ priority = "optional"
 assets = [
     ["target/release/ufw", "usr/local/sbin/ufw", "755"],
     ["target/release/ufw", "usr/sbin/ufw", "755"],
+    ["man/ufw-guard.8", "usr/share/man/man8/ufw-guard.8", "644"],
+    ["completions/bash/ufw", "usr/share/ufw-guard/completions/bash/ufw", "644"],
+    ["completions/zsh/_ufw", "usr/share/ufw-guard/completions/zsh/_ufw", "644"],
+    ["completions/fish/ufw.fish", "usr/share/ufw-guard/completions/fish/ufw.fish", "644"],
 ]
 maintainer-scripts = "debian/"
 
@@ -48,6 +52,10 @@ summary = "Compiled Rust governance wrapper for UFW"
 license = "MIT OR Apache-2.0"
 assets = [
     { source = "target/release/ufw", dest = "/usr/local/sbin/ufw", mode = "755" },
+    { source = "man/ufw-guard.8", dest = "/usr/share/man/man8/ufw-guard.8", mode = "644" },
+    { source = "completions/bash/ufw", dest = "/usr/share/ufw-guard/completions/bash/ufw", mode = "644" },
+    { source = "completions/zsh/_ufw", dest = "/usr/share/ufw-guard/completions/zsh/_ufw", mode = "644" },
+    { source = "completions/fish/ufw.fish", dest = "/usr/share/ufw-guard/completions/fish/ufw.fish", mode = "644" },
 ]
 
 [package.metadata.generate-rpm.requires]
