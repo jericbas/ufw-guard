@@ -49,6 +49,9 @@ sudo install -m 755 target/release/ufw /usr/local/sbin/ufw
 # Rule commands require an audit comment:
 ufw allow 22/tcp comment "Allow SSH ingress"
 
+# Automatically remove a temporary rule after two hours:
+ufw allow 22/tcp comment "Temporary SSH access" --ttl 2h
+
 # Missing comments trigger an interactive prompt (or deterministically error in CI/CD non-interactive sessions):
 ufw allow 80/tcp
 
@@ -61,6 +64,13 @@ ufw status verbose
 ufw reload
 ufw enable
 ```
+
+On interactive terminals, a rule without `--ttl` prompts for an expiration;
+press Enter to make it permanent. Non-interactive invocations also create
+permanent rules by default and print a warning. Use `--no-ttl` or `--permanent`
+to skip the prompt explicitly. TTL rules store their duration and expiration
+time in the audit comment and require `systemd-run` to schedule deletion.
+The minimum accepted TTL is one minute.
 
 ### Compliance audit and remediation
 
