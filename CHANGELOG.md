@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.0](https://github.com/jericbas/ufw-guard/compare/v0.5.0...v0.6.0) (2026-11-18)
+
+
+### Features
+
+* **deb:** divert upstream ufw for absolute-path interception ([#31](https://github.com/jericbas/ufw-guard/issues/31)) ([d097fef](https://github.com/jericbas/ufw-guard/commit/d097fef98f9c44f55b9b0df3757e9422c6238e89))
+* **packaging:** ship man page and shell completions ([#30](https://github.com/jericbas/ufw-guard/issues/30)) ([4db953c](https://github.com/jericbas/ufw-guard/commit/4db953c6385b83035c655637ba5d668c6a26d717))
+* support expiring firewall rules ([#32](https://github.com/jericbas/ufw-guard/issues/32)) ([e1ab02e](https://github.com/jericbas/ufw-guard/commit/e1ab02e1a889192bde8750696b72749ed16baea3))
+
 ## [0.5.0](https://github.com/jericbas/ufw-guard/compare/v0.4.0...v0.5.0) (2026-11-04)
 
 
