@@ -71,6 +71,8 @@ permanent rules by default and print a warning. Use `--no-ttl` or `--permanent`
 to skip the prompt explicitly. TTL rules store their duration and expiration
 time in the audit comment and require `systemd-run` to schedule deletion.
 The minimum accepted TTL is one minute.
+The transient timer does not survive a reboot before expiration; remove or
+recreate the rule after reboot if the timer has not run.
 
 ### Compliance audit and remediation
 
