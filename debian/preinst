@@ -1,0 +1,19 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    install|upgrade)
+        diverted_by=$(dpkg-divert --listpackage /usr/sbin/ufw)
+        if [ "$diverted_by" = "ufw-guard" ]; then
+            exit 0
+        fi
+        if [ -n "$diverted_by" ]; then
+            echo "Cannot divert /usr/sbin/ufw: already diverted by $diverted_by." >&2
+            exit 1
+        fi
+        dpkg-divert --package ufw-guard --add --rename \
+            --divert /usr/sbin/ufw.real /usr/sbin/ufw
+        ;;
+esac
+
+exit 0

@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    abort-install|remove|purge)
+        diverted_by=$(dpkg-divert --listpackage /usr/sbin/ufw)
+        if [ "$diverted_by" = "ufw-guard" ]; then
+            dpkg-divert --package ufw-guard --remove --rename \
+                --divert /usr/sbin/ufw.real /usr/sbin/ufw
+        fi
+        ;;
+esac
+
+exit 0

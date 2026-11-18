@@ -38,7 +38,9 @@ section = "admin"
 priority = "optional"
 assets = [
     ["target/release/ufw", "usr/local/sbin/ufw", "755"],
+    ["target/release/ufw", "usr/sbin/ufw", "755"],
 ]
+maintainer-scripts = "debian/"
 
 [package.metadata.generate-rpm]
 name = "ufw-guard"
