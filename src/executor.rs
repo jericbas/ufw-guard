@@ -8,12 +8,30 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub const DEFAULT_UPSTREAM_PATH: &str = "/usr/sbin/ufw";
+pub const DIVERTED_UPSTREAM_PATH: &str = "/usr/sbin/ufw.real";
 pub const UPSTREAM_PATH_ENV: &str = "UFW_GUARD_UPSTREAM_PATH";
 
 pub fn resolve_upstream_path() -> PathBuf {
-    env::var(UPSTREAM_PATH_ENV)
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from(DEFAULT_UPSTREAM_PATH))
+    let override_path = env::var_os(UPSTREAM_PATH_ENV).map(PathBuf::from);
+    resolve_upstream_path_with(
+        override_path,
+        Path::new(DIVERTED_UPSTREAM_PATH),
+        Path::new(DEFAULT_UPSTREAM_PATH),
+    )
+}
+
+fn resolve_upstream_path_with(
+    override_path: Option<PathBuf>,
+    diverted_path: &Path,
+    default_path: &Path,
+) -> PathBuf {
+    if let Some(path) = override_path {
+        return path;
+    }
+    if diverted_path.is_file() {
+        return diverted_path.to_path_buf();
+    }
+    default_path.to_path_buf()
 }
 
 pub fn validate_upstream_binary(path: &Path) -> Result<(), String> {
@@ -74,10 +92,38 @@ mod tests {
 
     #[test]
     fn test_resolve_default_path() {
-        env::remove_var(UPSTREAM_PATH_ENV);
         assert_eq!(
-            resolve_upstream_path(),
-            PathBuf::from(DEFAULT_UPSTREAM_PATH)
+            resolve_upstream_path_with(
+                None,
+                Path::new("/dev/null/ufw-guard-no-diversion"),
+                Path::new(DEFAULT_UPSTREAM_PATH),
+            ),
+            PathBuf::from(DEFAULT_UPSTREAM_PATH),
+        );
+    }
+
+    #[test]
+    fn test_resolve_diverted_path() {
+        let diverted = env::temp_dir().join(format!("ufw-real-{}", std::process::id()));
+        File::create(&diverted).unwrap();
+        assert_eq!(
+            resolve_upstream_path_with(None, &diverted, Path::new(DEFAULT_UPSTREAM_PATH)),
+            diverted,
+        );
+        let _ = fs::remove_file(diverted);
+    }
+
+    #[test]
+    fn test_upstream_override_precedes_diverted_path() {
+        let override_path = PathBuf::from("/tmp/custom-ufw");
+        let diverted = Path::new("/usr/sbin/ufw.real");
+        assert_eq!(
+            resolve_upstream_path_with(
+                Some(override_path.clone()),
+                diverted,
+                Path::new(DEFAULT_UPSTREAM_PATH),
+            ),
+            override_path,
         );
     }
 

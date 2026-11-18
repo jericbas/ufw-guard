@@ -38,11 +38,13 @@ section = "admin"
 priority = "optional"
 assets = [
     ["target/release/ufw", "usr/local/sbin/ufw", "755"],
+    ["target/release/ufw", "usr/sbin/ufw", "755"],
     ["man/ufw-guard.8", "usr/share/man/man8/ufw-guard.8", "644"],
     ["completions/bash/ufw", "usr/share/ufw-guard/completions/bash/ufw", "644"],
     ["completions/zsh/_ufw", "usr/share/ufw-guard/completions/zsh/_ufw", "644"],
     ["completions/fish/ufw.fish", "usr/share/ufw-guard/completions/fish/ufw.fish", "644"],
 ]
+maintainer-scripts = "debian/"
 
 [package.metadata.generate-rpm]
 name = "ufw-guard"

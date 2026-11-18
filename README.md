@@ -33,6 +33,14 @@ sudo dnf install ./ufw-guard-<version>-1.x86_64.rpm   # or .aarch64.rpm
 sha256sum -c SHA256SUMS --ignore-missing
 ```
 
+The Debian package uses `dpkg-divert` to move upstream `/usr/sbin/ufw` to
+`/usr/sbin/ufw.real`, then installs the governance wrapper at both
+`/usr/local/sbin/ufw` and `/usr/sbin/ufw`. This intercepts scripts that invoke
+UFW by its absolute path. Debian package upgrades of UFW continue to install
+the upstream binary at the diverted `.real` path. Removing `ufw-guard` removes
+the diversion and restores the upstream executable. RPM and tarball installs
+continue to use the PATH-based wrapper at `/usr/local/sbin/ufw`.
+
 ### From Source
 ```bash
 cargo build --release
